@@ -29,4 +29,7 @@ public:
     bool contains(const T& value) const;
     size_t getSize() const;
     T* getAll() const; 
+
+    bool saveBinary(const string& filename) const;
+    bool loadBinary(const string& filename);
 };

@@ -22,4 +22,8 @@ public:
     bool isEmpty() const;
     void print() const;
     void clear();
+
+    // Бинарная сериализация
+    bool saveBinary(const string& filename) const;
+    bool loadBinary(const string& filename);
 };

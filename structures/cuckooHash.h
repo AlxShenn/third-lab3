@@ -28,4 +28,7 @@ public:
     ~CuckooHash();
     void add(const T& key);
     bool contains(const T& key) const;
+
+    bool saveBinary(const string& filename) const;
+    bool loadBinary(const string& filename);
 };

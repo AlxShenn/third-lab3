@@ -24,4 +24,6 @@ public:
     size_t length() const;
     void print() const;
     void set(size_t index, const string& text);
+    bool saveBinary(const string& filename) const;
+    bool loadBinary(const string& filename);
 };

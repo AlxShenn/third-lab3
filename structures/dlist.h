@@ -33,4 +33,7 @@ public:
     void printForward() const;
     void printBackward() const;
     void clear();
+
+    bool saveBinary(const string& filename) const;
+    bool loadBinary(const string& filename);
 };

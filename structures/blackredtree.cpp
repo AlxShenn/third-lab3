@@ -1,5 +1,7 @@
 #include "blackredtree.h"
 #include <iostream>
+#include <fstream>
+#include <cstdint>
 
 using namespace std;
 
@@ -232,4 +234,70 @@ void RedBlackTree::print() const {
 void RedBlackTree::clear() {
     deleteTree(root);
     root = nullptr;
+}
+
+void RedBlackTree::saveInOrder(Node* node, void* outPtr) const {
+    if (!node) return;
+    saveInOrder(node->left, outPtr);
+    ofstream& out = *((ofstream*)outPtr);
+    int value = node->data;
+    out.write((const char*)&value, sizeof(value));
+    saveInOrder(node->right, outPtr);
+}
+
+void RedBlackTree::loadInOrder(int value) {
+    insert(value);
+}
+
+bool RedBlackTree::saveBinary(const char* filename) const {
+    ofstream out(filename, ios::binary);
+    if (!out) return false;
+
+    uint64_t count = 0;
+    
+    Node** stack = new Node*[100];
+    int stackCapacity = 100;
+    int stackSize = 0;
+    Node* cur = root;
+
+    while (cur || stackSize > 0) {
+        while (cur) {
+            if (stackSize == stackCapacity) {
+                stackCapacity *= 2;
+                Node** newStack = new Node*[stackCapacity];
+                for (int i = 0; i < stackSize; ++i) newStack[i] = stack[i];
+                delete[] stack;
+                stack = newStack;
+            }
+            stack[stackSize++] = cur;
+            cur = cur->left;
+        }
+        cur = stack[--stackSize];
+        ++count;
+        cur = cur->right;
+    }
+    delete[] stack;
+
+    out.write((const char*)&count, sizeof(count));
+    saveInOrder(root, &out);
+    return (bool)out;
+}
+
+bool RedBlackTree::loadBinary(const char* filename) {
+    ifstream in(filename, ios::binary);
+    if (!in) return false;
+
+    uint64_t count = 0;
+    in.read((char*)&count, sizeof(count));
+    if (!in) return false;
+
+    clear();
+
+    for (uint64_t i = 0; i < count; ++i) {
+        int value = 0;
+        in.read((char*)&value, sizeof(value));
+        if (!in) return false;
+        insert(value);
+    }
+    return true;
 }

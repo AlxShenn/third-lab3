@@ -30,4 +30,7 @@ public:
     bool find(const string& value) const;
     void print() const;
     void clear();
+
+    bool saveBinary(const string& filename) const;
+    bool loadBinary(const string& filename);
 };

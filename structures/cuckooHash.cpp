@@ -1,4 +1,7 @@
 #include "cuckooHash.h"
+#include <fstream>
+#include <vector>
+#include <cstdint>
 
 template <typename T>
 size_t CuckooHash<T>::hash1(const T& key) const {
@@ -83,6 +86,64 @@ bool CuckooHash<T>::contains(const T& key) const {
     if (table2[pos2].occupied && table2[pos2].key == key) return true;
     
     return false;
+}
+
+template <typename T>
+bool CuckooHash<T>::saveBinary(const string& filename) const {
+    ofstream out(filename, ios::binary);
+    if (!out) return false;
+
+    uint64_t cap = static_cast<uint64_t>(capacity);
+    out.write(reinterpret_cast<const char*>(&cap), sizeof(cap));
+
+    std::vector<T> all;
+    all.reserve(size);
+    for (size_t i = 0; i < capacity; ++i) {
+        if (table1[i].occupied) all.push_back(table1[i].key);
+        if (table2[i].occupied) all.push_back(table2[i].key);
+    }
+
+    uint64_t cnt = static_cast<uint64_t>(all.size());
+    out.write(reinterpret_cast<const char*>(&cnt), sizeof(cnt));
+
+    for (const T& key : all) {
+        uint32_t len = static_cast<uint32_t>(key.size());
+        out.write(reinterpret_cast<const char*>(&len), sizeof(len));
+        out.write(key.data(), len);
+    }
+    return static_cast<bool>(out);
+}
+
+template <typename T>
+bool CuckooHash<T>::loadBinary(const string& filename) {
+    ifstream in(filename, ios::binary);
+    if (!in) return false;
+
+    uint64_t cap = 0, cnt = 0;
+    in.read(reinterpret_cast<char*>(&cap), sizeof(cap));
+    in.read(reinterpret_cast<char*>(&cnt), sizeof(cnt));
+    if (!in) return false;
+
+    delete[] table1;
+    delete[] table2;
+    capacity = (cap > 0) ? static_cast<size_t>(cap) : 1;
+    size = 0;
+    table1 = new Entry[capacity];
+    table2 = new Entry[capacity];
+
+    for (uint64_t i = 0; i < cnt; ++i) {
+        uint32_t len = 0;
+        in.read(reinterpret_cast<char*>(&len), sizeof(len));
+        if (!in) return false;
+        T key;
+        key.resize(len);
+        if (len > 0) {
+            in.read(&key[0], len);
+            if (!in) return false;
+        }
+        add(key);
+    }
+    return true;
 }
 
 template class CuckooHash<string>;

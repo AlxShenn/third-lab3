@@ -22,6 +22,8 @@ private:
     Node* findMin(Node* node) const;
 
     void printInOrder(Node* node) const;
+    void saveInOrder(Node* node, void* out) const;
+    void loadInOrder(int value);
 
 public:
     RedBlackTree();
@@ -32,4 +34,7 @@ public:
     bool search(int target) const;
     void print() const;
     void clear();
+
+    bool saveBinary(const char* filename) const;
+    bool loadBinary(const char* filename);
 };

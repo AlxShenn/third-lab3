@@ -19,4 +19,7 @@ public:
     bool isEmpty() const;
     void print() const;
     void clear();
+
+    bool saveBinary(const std::string& filename) const;
+    bool loadBinary(const std::string& filename);
 };
