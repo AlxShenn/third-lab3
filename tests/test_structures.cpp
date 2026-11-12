@@ -3,6 +3,8 @@
 #include <fstream>
 #include <vector>
 #include <set>
+#include <algorithm>
+#include <random>
 #include "../structures/array.h"
 #include "../structures/slist.h"
 #include "../structures/dlist.h"
@@ -16,27 +18,27 @@
 TEST(ArrayTest, BasicOperations) {
     Array arr(2);
     EXPECT_EQ(arr.length(), 0);
-    EXPECT_EQ(arr.get(0), ""); 
+    EXPECT_EQ(arr.get(0), "");
 
     arr.addEnd("A");
     arr.addEnd("B");
     EXPECT_EQ(arr.length(), 2);
 
-    arr.addIndex("C", 1); 
+    arr.addIndex("C", 1);
     EXPECT_EQ(arr.get(1), "C");
     EXPECT_EQ(arr.get(2), "B");
 
-    arr.addIndex("D", 10); 
-    
-    arr.removeIndex(1); 
+    arr.addIndex("D", 10);
+
+    arr.removeIndex(1);
     EXPECT_EQ(arr.get(1), "B");
 
-    arr.removeIndex(10); 
+    arr.removeIndex(10);
 
     arr.set(0, "X");
     EXPECT_EQ(arr.get(0), "X");
-    
-    arr.set(10, "Y"); 
+
+    arr.set(10, "Y");
 }
 
 TEST(ArrayTest, Resize) {
@@ -49,12 +51,12 @@ TEST(ArrayTest, Resize) {
 
 TEST(ArrayTest, InvalidIndexes) {
     Array arr(1);
-    EXPECT_EQ(arr.get(10), ""); 
-    arr.set(10, "X"); 
+    EXPECT_EQ(arr.get(10), "");
+    arr.set(10, "X");
     EXPECT_EQ(arr.get(0), "");
-    
-    arr.addIndex("Y", 10); 
-    arr.removeIndex(10);   
+
+    arr.addIndex("Y", 10);
+    arr.removeIndex(10);
     EXPECT_EQ(arr.length(), 0);
 }
 
@@ -81,21 +83,18 @@ TEST(ArrayTest, BinarySerialization) {
     EXPECT_EQ(loaded.get(1), "Beta");
     EXPECT_EQ(loaded.get(2), "Gamma");
 
-    // Перезапись в существующий объект (очистка старых данных)
     Array loaded2;
     loaded2.addEnd("Old");
     ASSERT_TRUE(loaded2.loadBinary(file));
     EXPECT_EQ(loaded2.length(), 3);
     EXPECT_EQ(loaded2.get(0), "Alpha");
 
-    // Пустой массив
     Array empty;
     ASSERT_TRUE(empty.saveBinary(file));
     Array loadedEmpty;
     ASSERT_TRUE(loadedEmpty.loadBinary(file));
     EXPECT_EQ(loadedEmpty.length(), 0);
 
-    // Несуществующий файл
     EXPECT_FALSE(arr.loadBinary("no_such_file.bin"));
 
     std::remove(file.c_str());
@@ -126,18 +125,18 @@ TEST(SlistTest, PushAndFind) {
 
 TEST(SlistTest, EdgeCases) {
     Slist list;
-    list.deleteHead(); 
+    list.deleteHead();
     list.deleteTail();
-    list.pushBefore("NonExistent", "X"); 
+    list.pushBefore("NonExistent", "X");
 }
 
 TEST(SlistTest, NotExistBranches) {
     Slist list;
     list.pushHead("A");
-    list.deleteBefore("B"); 
+    list.deleteBefore("B");
     list.deleteAfter("B");
-    list.pushAfter("B", "C"); 
-    list.pushBefore("B", "D"); 
+    list.pushAfter("B", "C");
+    list.pushBefore("B", "D");
 }
 
 TEST(SlistTest, FullCoverage) {
@@ -166,10 +165,6 @@ TEST(SlistTest, BinarySerialization) {
     EXPECT_TRUE(loaded.find("two"));
     EXPECT_TRUE(loaded.find("three"));
 
-    // Порядок сохраняется
-    EXPECT_TRUE(loaded.find("one"));
-
-    // Загрузка в непустой список очищает его
     Slist loaded2;
     loaded2.pushTail("old1");
     loaded2.pushTail("old2");
@@ -177,7 +172,6 @@ TEST(SlistTest, BinarySerialization) {
     EXPECT_FALSE(loaded2.find("old1"));
     EXPECT_TRUE(loaded2.find("one"));
 
-    // Пустой список
     Slist empty;
     ASSERT_TRUE(empty.saveBinary(file));
     Slist loadedEmpty;
@@ -186,6 +180,206 @@ TEST(SlistTest, BinarySerialization) {
     EXPECT_FALSE(loadedEmpty.find("X"));
 
     EXPECT_FALSE(list.loadBinary("no_such_file.bin"));
+    std::remove(file.c_str());
+}
+
+TEST(SlistTest, PushHeadIntoSingleNode) {
+    Slist list;
+    list.pushHead("M");
+    list.pushHead("A");
+    list.pushHead("Z");
+    EXPECT_TRUE(list.find("Z"));
+    EXPECT_TRUE(list.find("A"));
+    EXPECT_TRUE(list.find("M"));
+}
+
+TEST(SlistTest, DeleteHeadSequential) {
+    Slist list;
+    list.pushTail("1");
+    list.pushTail("2");
+    list.pushTail("3");
+    list.pushTail("4");
+
+    list.deleteHead();
+    EXPECT_FALSE(list.find("1"));
+    EXPECT_TRUE(list.find("2"));
+
+    list.deleteHead();
+    EXPECT_FALSE(list.find("2"));
+    EXPECT_TRUE(list.find("3"));
+
+    list.deleteHead();
+    list.deleteHead();
+    EXPECT_FALSE(list.find("3"));
+    EXPECT_FALSE(list.find("4"));
+
+    list.deleteHead();
+    EXPECT_FALSE(list.find("4"));
+}
+
+TEST(SlistTest, DeleteTailSequential) {
+    Slist list;
+    list.pushTail("a");
+    list.pushTail("b");
+    list.pushTail("c");
+    list.pushTail("d");
+
+    list.deleteTail();
+    EXPECT_FALSE(list.find("d"));
+    EXPECT_TRUE(list.find("c"));
+
+    list.deleteTail();
+    EXPECT_FALSE(list.find("c"));
+    EXPECT_TRUE(list.find("b"));
+
+    list.deleteTail();
+    list.deleteTail();
+    EXPECT_FALSE(list.find("a"));
+
+    list.deleteTail();
+    EXPECT_FALSE(list.find("a"));
+}
+
+TEST(SlistTest, DeleteAfterMiddleAndTail) {
+    Slist list;
+    list.pushTail("A");
+    list.pushTail("B");
+    list.pushTail("C");
+    list.pushTail("D");
+
+    list.deleteAfter("B");
+    EXPECT_FALSE(list.find("C"));
+    EXPECT_TRUE(list.find("D"));
+
+    list.deleteAfter("A");
+    EXPECT_FALSE(list.find("B"));
+    EXPECT_TRUE(list.find("D"));
+
+    list.deleteAfter("D");
+    EXPECT_TRUE(list.find("D"));
+}
+
+TEST(SlistTest, DeleteBeforeMiddleAndHead) {
+    Slist list;
+    list.pushTail("A");
+    list.pushTail("B");
+    list.pushTail("C");
+    list.pushTail("D");
+
+    list.deleteBefore("C");
+    EXPECT_FALSE(list.find("B"));
+    EXPECT_TRUE(list.find("A"));
+
+    list.deleteBefore("D");
+    EXPECT_FALSE(list.find("C"));
+    EXPECT_TRUE(list.find("A"));
+
+    list.deleteBefore("A");
+    EXPECT_TRUE(list.find("A"));
+}
+
+TEST(SlistTest, DeleteValueFirstOccurrenceOnly) {
+    Slist list;
+    list.pushTail("A");
+    list.pushTail("B");
+    list.pushTail("C");
+    list.pushTail("B");
+    list.pushTail("D");
+
+    list.deleteValue("B");
+    EXPECT_TRUE(list.find("B"));
+    EXPECT_TRUE(list.find("A"));
+    EXPECT_TRUE(list.find("D"));
+
+    list.deleteValue("B");
+    EXPECT_FALSE(list.find("B"));
+
+    list.deleteValue("A");
+    EXPECT_FALSE(list.find("A"));
+
+    list.deleteValue("D");
+    EXPECT_FALSE(list.find("D"));
+
+    list.deleteValue("C");
+    EXPECT_FALSE(list.find("C"));
+}
+
+TEST(SlistTest, ClearTwice) {
+    Slist list;
+    list.pushTail("A");
+    list.pushTail("B");
+    list.clear();
+    EXPECT_FALSE(list.find("A"));
+    list.clear();
+    EXPECT_FALSE(list.find("B"));
+}
+
+TEST(SlistTest, RepeatedPushAfterSameValue) {
+    Slist list;
+    list.pushHead("X");
+    list.pushAfter("X", "Y");
+    list.pushAfter("X", "Z");
+    list.pushAfter("Y", "W");
+
+    EXPECT_TRUE(list.find("Y"));
+    EXPECT_TRUE(list.find("Z"));
+    EXPECT_TRUE(list.find("W"));
+}
+
+TEST(SlistTest, PushBeforeHead) {
+    Slist list;
+    list.pushHead("B");
+    list.pushHead("C");
+    list.pushBefore("C", "A");
+    EXPECT_TRUE(list.find("A"));
+    EXPECT_TRUE(list.find("B"));
+    EXPECT_TRUE(list.find("C"));
+}
+
+TEST(SlistTest, PushTailToEmpty) {
+    Slist list;
+    list.pushTail("only");
+    EXPECT_TRUE(list.find("only"));
+    list.deleteTail();
+    EXPECT_FALSE(list.find("only"));
+}
+
+TEST(SlistTest, SerializationOrderPreserved) {
+    Slist list;
+    list.pushTail("1");
+    list.pushTail("2");
+    list.pushTail("3");
+    list.pushTail("4");
+
+    const string file = "test_slist_order.bin";
+    ASSERT_TRUE(list.saveBinary(file));
+
+    Slist loaded;
+    ASSERT_TRUE(loaded.loadBinary(file));
+    EXPECT_TRUE(loaded.find("1"));
+    EXPECT_TRUE(loaded.find("2"));
+    EXPECT_TRUE(loaded.find("3"));
+    EXPECT_TRUE(loaded.find("4"));
+
+    std::remove(file.c_str());
+}
+
+TEST(SlistTest, SerializationAfterDeletions) {
+    Slist list;
+    list.pushTail("a");
+    list.pushTail("b");
+    list.pushTail("c");
+    list.deleteValue("b");
+
+    const string file = "test_slist_del.bin";
+    ASSERT_TRUE(list.saveBinary(file));
+
+    Slist loaded;
+    ASSERT_TRUE(loaded.loadBinary(file));
+    EXPECT_TRUE(loaded.find("a"));
+    EXPECT_FALSE(loaded.find("b"));
+    EXPECT_TRUE(loaded.find("c"));
+
     std::remove(file.c_str());
 }
 
@@ -235,12 +429,12 @@ TEST(DlistTest, ExtremeCoverage) {
     list.pushTail("B");
     list.pushAfter("A", "C");
     list.pushBefore("B", "D");
-    
+
     list.deleteAfter("A");
     list.deleteBefore("B");
     list.deleteValue("A");
     list.deleteValue("B");
-    
+
     list.printForward();
     list.printBackward();
 }
@@ -260,7 +454,6 @@ TEST(DlistTest, BinarySerialization) {
     EXPECT_TRUE(loaded.find("second"));
     EXPECT_TRUE(loaded.find("third"));
 
-    // Проверка порядка через printForward (косвенно)
     Dlist loaded2;
     loaded2.pushHead("old");
     ASSERT_TRUE(loaded2.loadBinary(file));
@@ -327,7 +520,6 @@ TEST(StackTest, BinarySerialization) {
     EXPECT_EQ(val, "bottom");
     EXPECT_TRUE(loaded.isEmpty());
 
-    // Непустой стек очищается при загрузке
     Stack loaded2;
     loaded2.push("old");
     ASSERT_TRUE(loaded2.loadBinary(file));
@@ -338,7 +530,6 @@ TEST(StackTest, BinarySerialization) {
     loaded2.pop(val);
     EXPECT_EQ(val, "bottom");
 
-    // Пустой стек
     Stack empty;
     ASSERT_TRUE(empty.saveBinary(file));
     Stack loadedEmpty;
@@ -390,14 +581,11 @@ TEST(QueueTest, BinarySerialization) {
     ASSERT_TRUE(loaded.loadBinary(file));
     EXPECT_FALSE(loaded.isEmpty());
 
-    // FIFO: сначала должен извлечься "a"
-    // Queue::pop выводит в cout, поэтому проверим через isEmpty после трёх pop
     loaded.pop();
     loaded.pop();
     loaded.pop();
     EXPECT_TRUE(loaded.isEmpty());
 
-    // Непустая очередь очищается
     Queue loaded2;
     loaded2.push("old");
     ASSERT_TRUE(loaded2.loadBinary(file));
@@ -441,11 +629,11 @@ TEST(HashSetTest, ClearAndGetAll) {
     set.add("1");
     set.add("2");
     set.add("3");
-    
+
     std::string* all = set.getAll();
     EXPECT_TRUE(all != nullptr);
     delete[] all;
-    
+
     set.free();
     EXPECT_EQ(set.getSize(), 0);
     EXPECT_FALSE(set.contains("1"));
@@ -457,7 +645,7 @@ TEST(HashSetTest, ForceCollisions) {
     set.add("B");
     set.add("C");
     set.add("D");
-    
+
     EXPECT_TRUE(set.contains("C"));
     EXPECT_TRUE(set.remove("B"));
     EXPECT_TRUE(set.remove("C"));
@@ -479,7 +667,6 @@ TEST(HashSetTest, BinarySerialization) {
     EXPECT_TRUE(loaded.contains("gamma"));
     EXPECT_EQ(loaded.getSize(), 3);
 
-    // Загрузка в непустой сет очищает его
     HashSet<std::string> loaded2;
     loaded2.add("old");
     ASSERT_TRUE(loaded2.loadBinary(file));
@@ -487,7 +674,6 @@ TEST(HashSetTest, BinarySerialization) {
     EXPECT_TRUE(loaded2.contains("alpha"));
     EXPECT_EQ(loaded2.getSize(), 3);
 
-    // Пустой сет
     HashSet<std::string> empty;
     ASSERT_TRUE(empty.saveBinary(file));
     HashSet<std::string> loadedEmpty;
@@ -501,7 +687,7 @@ TEST(HashSetTest, BinarySerialization) {
 
 // ================= CUCKOOHASH =================
 TEST(CuckooHashTest, AddAndContains) {
-    CuckooHash<std::string> ch(4); 
+    CuckooHash<std::string> ch(4);
     EXPECT_FALSE(ch.contains("key1"));
 
     ch.add("key1");
@@ -545,14 +731,12 @@ TEST(CuckooHashTest, BinarySerialization) {
     EXPECT_TRUE(loaded.contains("two"));
     EXPECT_TRUE(loaded.contains("three"));
 
-    // Загрузка в непустой объект
     CuckooHash<std::string> loaded2;
     loaded2.add("old");
     ASSERT_TRUE(loaded2.loadBinary(file));
     EXPECT_FALSE(loaded2.contains("old"));
     EXPECT_TRUE(loaded2.contains("one"));
 
-    // Пустой объект
     CuckooHash<std::string> empty;
     ASSERT_TRUE(empty.saveBinary(file));
     CuckooHash<std::string> loadedEmpty;
@@ -582,42 +766,17 @@ TEST(RedBlackTreeTest, InsertAndSearch) {
     tree.print();
 }
 
-TEST(RedBlackTreeTest, RemoveNodes) {
+TEST(RedBlackTreeTest, DuplicateInsertKeepsValue) {
     RedBlackTree tree;
     tree.insert(10);
-    tree.insert(5);
-    tree.insert(15);
-    tree.insert(3);
-    tree.insert(7);
-    tree.insert(12);
-    tree.insert(20);
-
-    tree.remove(3);
-    tree.remove(20);
-    tree.remove(10);
-    tree.remove(100);
-
-    EXPECT_FALSE(tree.search(10));
-    EXPECT_TRUE(tree.search(5));
-    
-    tree.clear();
-    EXPECT_FALSE(tree.search(5));
-}
-
-TEST(RedBlackTreeTest, SafeDeletions) {
-    RedBlackTree tree;
     tree.insert(10);
-    tree.insert(20);
-    tree.insert(15); 
-    tree.insert(5);
-    tree.insert(1);
-    
-    tree.remove(1); 
-    tree.remove(5);
-    
-    EXPECT_FALSE(tree.search(1));
     EXPECT_TRUE(tree.search(10));
-    EXPECT_TRUE(tree.search(20));
+
+    tree.remove(10);
+    EXPECT_TRUE(tree.search(10));
+
+    tree.remove(10);
+    EXPECT_FALSE(tree.search(10));
 }
 
 TEST(RedBlackTreeTest, Traversals) {
@@ -625,43 +784,10 @@ TEST(RedBlackTreeTest, Traversals) {
     tree.insert(10);
     tree.insert(5);
     tree.insert(15);
-    
-    tree.print(); 
-    tree.clear();
-    EXPECT_FALSE(tree.search(10));
-}
 
-TEST(RedBlackTreeTest, DuplicateInsert) {
-    RedBlackTree tree;
-    tree.insert(10);
-    tree.insert(10);
-    EXPECT_TRUE(tree.search(10));
-}
-
-TEST(RedBlackTreeTest, AdditionalDeletions) {
-    RedBlackTree tree;
-    tree.insert(50);
-    tree.insert(30);
-    tree.insert(70);
-    
-    tree.remove(999); 
-    
-    tree.insert(10);
-    tree.remove(10); 
-    
-    EXPECT_TRUE(tree.search(30));
-    tree.print(); 
-    tree.clear();
-}
-
-TEST(RedBlackTreeTest, AllTraversals) {
-    RedBlackTree tree;
-    tree.insert(10);
-    tree.insert(5);
-    tree.insert(15);
-    
     tree.print();
     tree.clear();
+    EXPECT_FALSE(tree.search(10));
 }
 
 TEST(RedBlackTreeTest, InsertZigZag) {
@@ -672,19 +798,96 @@ TEST(RedBlackTreeTest, InsertZigZag) {
     tree.insert(5);
     tree.insert(1);
     tree.insert(8);
-    
+
     EXPECT_TRUE(tree.search(15));
 }
 
-TEST(RedBlackTreeTest, EdgeCases) {
+TEST(RedBlackTreeTest, SortedAscendingInsert) {
     RedBlackTree tree;
-    EXPECT_FALSE(tree.search(10));
-    
+    for (int i = 1; i <= 64; ++i) tree.insert(i);
+    for (int i = 1; i <= 64; ++i) EXPECT_TRUE(tree.search(i));
+    EXPECT_FALSE(tree.search(0));
+    EXPECT_FALSE(tree.search(65));
+}
+
+TEST(RedBlackTreeTest, SortedDescendingInsert) {
+    RedBlackTree tree;
+    for (int i = 64; i >= 1; --i) tree.insert(i);
+    for (int i = 1; i <= 64; ++i) EXPECT_TRUE(tree.search(i));
+    EXPECT_FALSE(tree.search(0));
+    EXPECT_FALSE(tree.search(65));
+}
+
+TEST(RedBlackTreeTest, AllNegativeAndZero) {
+    RedBlackTree tree;
+    std::vector<int> values = {-50, -30, -70, 0, -20, -40, -60, -80};
+    for (int v : values) tree.insert(v);
+    for (int v : values) EXPECT_TRUE(tree.search(v));
+    EXPECT_FALSE(tree.search(1));
+    EXPECT_FALSE(tree.search(-1));
+
+    tree.remove(0);
+    EXPECT_FALSE(tree.search(0));
+    tree.remove(-80);
+    EXPECT_FALSE(tree.search(-80));
+    for (int v : values) {
+        if (v != 0 && v != -80) EXPECT_TRUE(tree.search(v));
+    }
+}
+
+TEST(RedBlackTreeTest, RemoveNonExistentValues) {
+    RedBlackTree tree;
     tree.insert(10);
-    tree.insert(10);
-    
+    tree.insert(20);
+    tree.insert(30);
+
+    tree.remove(0);
+    tree.remove(15);
+    tree.remove(25);
+    tree.remove(100);
+
+    EXPECT_TRUE(tree.search(10));
+    EXPECT_TRUE(tree.search(20));
+    EXPECT_TRUE(tree.search(30));
+}
+
+TEST(RedBlackTreeTest, RemoveFromEmpty) {
+    RedBlackTree tree;
+    tree.remove(1);
+    EXPECT_FALSE(tree.search(1));
+}
+
+TEST(RedBlackTreeTest, RemoveSingleNode) {
+    RedBlackTree tree;
+    tree.insert(42);
+    tree.remove(42);
+    EXPECT_FALSE(tree.search(42));
+
+    tree.remove(42);
+    EXPECT_FALSE(tree.search(42));
+}
+
+TEST(RedBlackTreeTest, ClearOnEmpty) {
+    RedBlackTree tree;
     tree.clear();
-    EXPECT_FALSE(tree.search(10));
+    EXPECT_FALSE(tree.search(1));
+
+    tree.insert(1);
+    tree.clear();
+    EXPECT_FALSE(tree.search(1));
+    tree.clear();
+    EXPECT_FALSE(tree.search(1));
+}
+
+TEST(RedBlackTreeTest, PrintOnEmptyAndFilled) {
+    RedBlackTree tree;
+    tree.print();
+    tree.insert(5);
+    tree.insert(3);
+    tree.insert(7);
+    tree.print();
+    tree.clear();
+    tree.print();
 }
 
 TEST(RedBlackTreeTest, BinarySerialization) {
@@ -703,7 +906,6 @@ TEST(RedBlackTreeTest, BinarySerialization) {
     }
     EXPECT_FALSE(loaded.search(9999));
 
-    // Загрузка в непустое дерево очищает его
     RedBlackTree loaded2;
     loaded2.insert(1234);
     ASSERT_TRUE(loaded2.loadBinary(file));
@@ -711,7 +913,6 @@ TEST(RedBlackTreeTest, BinarySerialization) {
     EXPECT_TRUE(loaded2.search(50));
     for (int v : values) EXPECT_TRUE(loaded2.search(v));
 
-    // Пустое дерево
     RedBlackTree empty;
     ASSERT_TRUE(empty.saveBinary(file));
     RedBlackTree loadedEmpty;
@@ -722,6 +923,122 @@ TEST(RedBlackTreeTest, BinarySerialization) {
 
     EXPECT_FALSE(tree.loadBinary("no_such_file.bin"));
     std::remove(file);
+}
+
+TEST(RedBlackTreeTest, SerializationLargeTree) {
+    RedBlackTree tree;
+    std::mt19937 rng(12345);
+    std::vector<int> values;
+    for (int i = 1; i <= 100; ++i) values.push_back(i);
+    std::shuffle(values.begin(), values.end(), rng);
+    for (int v : values) tree.insert(v);
+
+    const char* file = "test_rbtree_large.bin";
+    ASSERT_TRUE(tree.saveBinary(file));
+
+    RedBlackTree loaded;
+    ASSERT_TRUE(loaded.loadBinary(file));
+    for (int i = 1; i <= 100; ++i) EXPECT_TRUE(loaded.search(i));
+    EXPECT_FALSE(loaded.search(0));
+    EXPECT_FALSE(loaded.search(101));
+
+    std::remove(file);
+}
+
+TEST(RedBlackTreeTest, RemoveLeafNodes) {
+    RedBlackTree tree;
+    tree.insert(20);
+    tree.insert(10);
+    tree.insert(30);
+    tree.insert(5);
+    tree.insert(15);
+    tree.insert(25);
+    tree.insert(35);
+
+    tree.remove(5);
+    tree.remove(15);
+    tree.remove(25);
+    tree.remove(35);
+
+    EXPECT_FALSE(tree.search(5));
+    EXPECT_FALSE(tree.search(15));
+    EXPECT_FALSE(tree.search(25));
+    EXPECT_FALSE(tree.search(35));
+    EXPECT_TRUE(tree.search(10));
+    EXPECT_TRUE(tree.search(20));
+    EXPECT_TRUE(tree.search(30));
+}
+
+TEST(RedBlackTreeTest, RemoveNodeWithOneChild) {
+    RedBlackTree tree;
+    tree.insert(20);
+    tree.insert(10);
+    tree.insert(30);
+    tree.insert(5);
+
+    tree.remove(10);
+    EXPECT_FALSE(tree.search(10));
+    EXPECT_TRUE(tree.search(5));
+    EXPECT_TRUE(tree.search(20));
+    EXPECT_TRUE(tree.search(30));
+}
+
+TEST(RedBlackTreeTest, RemoveNodeWithTwoChildren) {
+    RedBlackTree tree;
+    tree.insert(50);
+    tree.insert(30);
+    tree.insert(70);
+    tree.insert(20);
+    tree.insert(40);
+    tree.insert(60);
+    tree.insert(80);
+
+    tree.remove(50);
+    EXPECT_FALSE(tree.search(50));
+    EXPECT_TRUE(tree.search(20));
+    EXPECT_TRUE(tree.search(40));
+    EXPECT_TRUE(tree.search(60));
+    EXPECT_TRUE(tree.search(80));
+
+    tree.remove(30);
+    EXPECT_FALSE(tree.search(30));
+    EXPECT_TRUE(tree.search(20));
+    EXPECT_TRUE(tree.search(40));
+}
+
+TEST(RedBlackTreeTest, RemoveAllNodesOneByOne) {
+    RedBlackTree tree;
+    std::vector<int> values = {40, 20, 60, 10, 30, 50, 70, 5, 15, 25, 35, 45, 55, 65, 75};
+    for (int v : values) tree.insert(v);
+
+    for (int v : values) {
+        tree.remove(v);
+        EXPECT_FALSE(tree.search(v));
+    }
+
+    for (int v : values) EXPECT_FALSE(tree.search(v));
+}
+
+TEST(RedBlackTreeTest, LargeRandomInsertRemove) {
+    RedBlackTree tree;
+    std::mt19937 rng(12345);
+
+    std::vector<int> values;
+    for (int i = 0; i < 200; ++i) values.push_back(i * 3 + 1);
+
+    std::shuffle(values.begin(), values.end(), rng);
+    for (int v : values) tree.insert(v);
+    for (int v : values) EXPECT_TRUE(tree.search(v));
+
+    std::shuffle(values.begin(), values.end(), rng);
+    for (size_t i = 0; i < values.size() / 2; ++i) {
+        SCOPED_TRACE(::testing::Message() << "remove(" << values[i] << ")");
+        tree.remove(values[i]);
+        EXPECT_FALSE(tree.search(values[i]));
+    }
+    for (size_t i = values.size() / 2; i < values.size(); ++i) {
+        EXPECT_TRUE(tree.search(values[i]));
+    }
 }
 
 int main(int argc, char **argv) {
