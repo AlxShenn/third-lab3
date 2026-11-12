@@ -18,7 +18,7 @@ private:
     void Insert(Node* z);
     void deleteTree(Node* node);
     void transplant(Node* u, Node* v);
-    void Delete(Node* x);
+    void Delete(Node* x, Node* parent);
     Node* findMin(Node* node) const;
 
     void printInOrder(Node* node) const;

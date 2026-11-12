@@ -122,21 +122,26 @@ void RedBlackTree::remove(int value) {
 
     Node* y = z;
     bool yOriginalRed = y->isRed;
-    Node* x;
+    Node* x = nullptr;
+    Node* xParent = nullptr;
 
     if (!z->left) {
         x = z->right;
+        xParent = z->parent;
         transplant(z, z->right);
     } else if (!z->right) {
         x = z->left;
+        xParent = z->parent;
         transplant(z, z->left);
     } else {
         y = findMin(z->right);
         yOriginalRed = y->isRed;
         x = y->right;
         if (y->parent == z) {
+            xParent = y;
             if (x) x->parent = y;
         } else {
+            xParent = y->parent;
             transplant(y, y->right);
             y->right = z->right;
             y->right->parent = y;
@@ -150,58 +155,63 @@ void RedBlackTree::remove(int value) {
     delete z;
 
     if (!yOriginalRed) {
-        Delete(x);
+        Delete(x, xParent);
     }
 }
 
-void RedBlackTree::Delete(Node* x) {
+void RedBlackTree::Delete(Node* x, Node* parent) {
     while (x != root && (!x || !x->isRed)) {
-        if (x == x->parent->left) {
-            Node* w = x->parent->right;
-            if (w && w->isRed) {
+        Node* xp = x ? x->parent : parent;
+        if (x == xp->left) {
+            Node* w = xp->right;
+            if (!w) { x = xp; parent = xp->parent; continue; }
+            if (w->isRed) {
                 w->isRed = false;
-                x->parent->isRed = true;
-                rotateLeft(x->parent);
-                w = x->parent->right;
+                xp->isRed = true;
+                rotateLeft(xp);
+                w = xp->right;
             }
             if ((!w->left || !w->left->isRed) && (!w->right || !w->right->isRed)) {
-                if (w) w->isRed = true;
-                x = x->parent;
+                w->isRed = true;
+                x = xp;
+                parent = xp->parent;
             } else {
                 if (!w->right || !w->right->isRed) {
                     if (w->left) w->left->isRed = false;
-                    if (w) w->isRed = true;
+                    w->isRed = true;
                     rotateRight(w);
-                    w = x->parent->right;
+                    w = xp->right;
                 }
-                if (w) w->isRed = x->parent->isRed;
-                x->parent->isRed = false;
+                w->isRed = xp->isRed;
+                xp->isRed = false;
                 if (w->right) w->right->isRed = false;
-                rotateLeft(x->parent);
+                rotateLeft(xp);
                 x = root;
             }
         } else {
-            Node* w = x->parent->left;
-            if (w && w->isRed) {
+            Node* w = xp->left;
+            if (!w) { x = xp; parent = xp->parent; continue; }
+            if (w->isRed) {
                 w->isRed = false;
-                x->parent->isRed = true;
-                rotateRight(x->parent);
-                w = x->parent->left;
+                xp->isRed = true;
+                rotateRight(xp);
+                w = xp->left;
             }
             if ((!w->right || !w->right->isRed) && (!w->left || !w->left->isRed)) {
-                if (w) w->isRed = true;
-                x = x->parent;
+                w->isRed = true;
+                x = xp;
+                parent = xp->parent;
             } else {
                 if (!w->left || !w->left->isRed) {
                     if (w->right) w->right->isRed = false;
-                    if (w) w->isRed = true;
+                    w->isRed = true;
                     rotateLeft(w);
-                    w = x->parent->left;
+                    w = xp->left;
                 }
-                if (w) w->isRed = x->parent->isRed;
-                x->parent->isRed = false;
+                w->isRed = xp->isRed;
+                xp->isRed = false;
                 if (w->left) w->left->isRed = false;
-                rotateRight(x->parent);
+                rotateRight(xp);
                 x = root;
             }
         }
@@ -254,7 +264,7 @@ bool RedBlackTree::saveBinary(const char* filename) const {
     if (!out) return false;
 
     uint64_t count = 0;
-    
+
     Node** stack = new Node*[100];
     int stackCapacity = 100;
     int stackSize = 0;
